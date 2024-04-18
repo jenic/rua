@@ -236,7 +236,7 @@ pub fn check_tars_and_move(name: &str, rua_paths: &RuaPaths, archive_whitelist: 
 		);
 	});
 
-	for (file, file_name) in dir_items {
+	for (file, file_name) in &dir_items {
 		let src = &file.path();
 		let dst = &checked_tars_dir.join(file_name);
 
@@ -268,6 +268,31 @@ pub fn check_tars_and_move(name: &str, rua_paths: &RuaPaths, archive_whitelist: 
 				panic!(
 					"Failed to move {:?} (build artifact) to {:?}, {}",
 					&file, &checked_tars_dir, e,
+				)
+			});
+
+		// Repeat for sig file
+		let sig_file_name = format!("{}.sig", file_name);
+		let sig_src = &build_dir.join(&sig_file_name);
+		let sig_dst = &checked_tars_dir.join(&sig_file_name);
+
+		if !sig_src.exists() {
+			continue;
+		}
+		fs::rename(sig_src, sig_dst)
+			.or_else(|err| {
+				if err.raw_os_error() != Some(libc::EXDEV) {
+					return Err(err);
+				}
+				fs::copy(src, dst)?;
+				let _ = fs::remove_file(src);
+
+				Ok(())
+			})
+			.unwrap_or_else(|e| {
+				panic!(
+					"Failed to move {:?} (build artifact) to {:?}, {}",
+					&sig_file_name, &checked_tars_dir, e,
 				)
 			});
 	}
