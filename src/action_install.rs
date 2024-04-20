@@ -180,10 +180,14 @@ fn install_all(
 			});
 
 			for file in read_dir_iterator {
-				files_to_install.push((
-					split.to_string(),
-					file.expect("Failed to access checked_tars dir").path(),
-				));
+				let path = file.expect("Failed to access checked_tars dir").path();
+				// Do not add signatures as packages to install
+				if let Some(extension) = path.extension() {
+					if extension == "sig" {
+						continue;
+					}
+				}
+				files_to_install.push((split.to_string(), path));
 			}
 		}
 		pacman::ensure_aur_packages_installed(files_to_install, asdeps || depth > 0);
